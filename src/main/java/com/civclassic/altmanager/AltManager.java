@@ -18,25 +18,25 @@ import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.programmerdan.minecraft.banstick.data.BSBan;
 import com.programmerdan.minecraft.banstick.data.BSPlayer;
 import com.programmerdan.minecraft.banstick.data.BSShare;
 
 import vg.civcraft.mc.namelayer.NameAPI;
-import vg.civcraft.mc.prisonpearl.PrisonPearl;
 import vg.civcraft.mc.prisonpearl.PrisonPearlPlugin;
 import vg.civcraft.mc.prisonpearl.events.PrisonPearlEvent;
 import vg.civcraft.mc.prisonpearl.events.PrisonPearlEvent.Type;
 
 public class AltManager extends JavaPlugin implements Listener {
 
-	boolean allowSelfPearl = false;
-	int maxImprisoned = 1;
+	private int maxImprisoned = 1;
+	private String kickMessage;
 	
 	public void onEnable() {
 		saveDefaultConfig();
 		reloadConfig();
-		allowSelfPearl = getConfig().getBoolean("allowSelfPearl", allowSelfPearl);
 		maxImprisoned = getConfig().getInt("maxImprisoned", maxImprisoned);
+		kickMessage = getConfig().getString("kickMessage", "You have too many imprisoned alts, message modmail if you think this is an error.");
 		getServer().getPluginManager().registerEvents(this, this);
 		getCommand("alts").setExecutor(this);
 	}
@@ -44,43 +44,39 @@ public class AltManager extends JavaPlugin implements Listener {
 	@EventHandler
 	public void onPlayerLogin(AsyncPlayerPreLoginEvent event) {
 		Set<UUID> alts = getAlts(event.getUniqueId());
-		int count = getPearledCount(alts);
-		getLogger().info("Imprisoned count for " + event.getUniqueId() + ": " + count);
-		if(count > maxImprisoned) {
-			boolean nonSelfPearl = false;
-			for(UUID alt : getImprisonedAlts(alts)) {
-				PrisonPearl pearl = PrisonPearlPlugin.getPrisonPearlManager().getByImprisoned(alt);
-				if(pearl != null && !alts.contains(pearl.getKillerUUID())) {
-					nonSelfPearl = true;
+		for(UUID alt : alts) {
+			BSPlayer bsp = BSPlayer.byUUID(alt);
+			if(bsp != null) {
+				BSBan ban = bsp.getBan();
+				if(ban != null) {
+					event.disallow(Result.KICK_BANNED, "You are banned, message modmail if you think this is an error");
 				}
 			}
-			if(nonSelfPearl || !allowSelfPearl) {
-				PrisonPearl pearl = PrisonPearlPlugin.getPrisonPearlManager().getByImprisoned(event.getUniqueId());
-				if(pearl != null && !alts.contains(pearl.getKillerUUID())) {
-					getLogger().info("Allowing " + pearl.getImprisonedName() + " to log in because they're pearled");
-				} else {
-					event.disallow(Result.KICK_OTHER, "You have too many imprisoned alts, message modmail if you think this is an error");
-				}
+		}
+		int count = getImprisonedCount(alts);
+		getLogger().info("Imprisoned count for " + event.getUniqueId() + ": " + count);
+		if(count > maxImprisoned) {
+			if(!PrisonPearlPlugin.getPrisonPearlManager().isImprisoned(event.getUniqueId())) {
+				event.disallow(Result.KICK_BANNED, kickMessage);
 			}
 		}
 	}
 
 	@EventHandler
-	public void onPrionPearl(PrisonPearlEvent event) {
-		if(event.getType() != Type.NEW) return;
-		Set<UUID> alts = getAlts(event.getPrisonPearl().getImprisonedId());
-		alts.remove(event.getPrisonPearl().getImprisonedId());
-		int count = getPearledCount(alts);
-		getLogger().info("Imprisoned count for " + event.getPrisonPearl().getImprisonedId() + ": " + count);
-		boolean allow = allowSelfPearl && alts.contains(event.getPrisonPearl().getKillerUUID());
-		if(count < maxImprisoned || allow) {
-			getLogger().info(event.getPrisonPearl().getImprisonedName() + " not alt banned due to self pearl");
-			return;
-		}
-		for(UUID id :  alts) {
-			Player p = Bukkit.getPlayer(id);
-			if(p != null && p.isOnline()) {
-				p.kickPlayer("You have too many imprisoned alts, message modmail if you think this is a mistake");
+	public void onPrisonPearl(PrisonPearlEvent event) {
+		if(event.getType() == Type.NEW) {
+			Set<UUID> alts = getAlts(event.getPrisonPearl().getImprisonedId());
+			int count = getImprisonedCount(alts);
+			if(count < maxImprisoned) {
+				getLogger().info(event.getPrisonPearl().getImprisonedName() + " not alt banned due to less than " + maxImprisoned + " pearled");
+				return;
+			}
+			alts.remove(event.getPrisonPearl().getImprisonedId());
+			for(UUID id : alts) {
+				Player player = Bukkit.getPlayer(id);
+				if(player != null && player.isOnline()) {
+					player.kickPlayer(kickMessage);
+				}
 			}
 		}
 	}
@@ -171,10 +167,6 @@ public class AltManager extends JavaPlugin implements Listener {
 		return shares;
 	}
 	
-	private int getPearledCount(Set<UUID> alts) {
-		return getImprisonedAlts(alts).size();
-	}
-	
 	private Set<UUID> getImprisonedAlts(Set<UUID> alts) {
 		Set<UUID> imprisoned = new HashSet<UUID>();
 		for(UUID alt : alts) {
@@ -183,5 +175,9 @@ public class AltManager extends JavaPlugin implements Listener {
 			}
 		}
 		return imprisoned;
+	}
+	
+	private int getImprisonedCount(Set<UUID> alts) {
+		return getImprisonedAlts(alts).size();
 	}
 }
