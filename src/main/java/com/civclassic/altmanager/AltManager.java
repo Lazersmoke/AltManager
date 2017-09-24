@@ -55,7 +55,7 @@ public class AltManager extends JavaPlugin implements Listener {
 		}
 		int count = getImprisonedCount(alts);
 		getLogger().info("Imprisoned count for " + event.getUniqueId() + ": " + count);
-		if(count > maxImprisoned) {
+		if(count >= maxImprisoned) {
 			if(!PrisonPearlPlugin.getPrisonPearlManager().isImprisoned(event.getUniqueId())) {
 				event.disallow(Result.KICK_BANNED, kickMessage);
 			}
