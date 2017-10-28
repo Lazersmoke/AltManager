@@ -1,2 +1,3 @@
 allowSelfPearl: false
 maxImprisoned: 1
+kickMessage: You have too many imprisoned alts, message modmail if you think this is an error.

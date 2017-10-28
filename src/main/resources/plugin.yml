@@ -12,6 +12,10 @@ commands:
     description: Check some stats
     usage: "Usage: /altstats"
     permission: altmanager.admin
+  reloadexceptions:
+    description: Reloads exceptions
+    usage: "Usage: /reloadexceptions"
+    permission: altmanager.admin
 permissions:
   altmanager.admin:
     description: Allows usage of the altlist command

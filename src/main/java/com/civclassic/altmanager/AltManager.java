@@ -1,5 +1,8 @@
 package com.civclassic.altmanager;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +14,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -31,14 +35,39 @@ public class AltManager extends JavaPlugin implements Listener {
 
 	private int maxImprisoned = 1;
 	private String kickMessage;
+	private Map<UUID, Set<UUID>> exceptions = new HashMap<UUID, Set<UUID>>();
+	private Map<UUID, UUID> mains = new HashMap<UUID, UUID>();;
 	
 	public void onEnable() {
 		saveDefaultConfig();
 		reloadConfig();
 		maxImprisoned = getConfig().getInt("maxImprisoned", maxImprisoned);
 		kickMessage = getConfig().getString("kickMessage", "You have too many imprisoned alts, message modmail if you think this is an error.");
+		loadExceptions();
 		getServer().getPluginManager().registerEvents(this, this);
-		getCommand("alts").setExecutor(this);
+	}
+	
+	private void loadExceptions() {
+		exceptions.clear();
+		mains.clear();
+		File exceptionsFile = new File(getDataFolder(), "exceptions.yml");
+		if(!exceptionsFile.exists()) {
+			try {
+				exceptionsFile.createNewFile();
+			} catch (IOException e) {}
+		}
+		YamlConfiguration exceptionsYaml = YamlConfiguration.loadConfiguration(exceptionsFile);
+		for(String mainName : exceptionsYaml.getKeys(false)) {
+			UUID main = NameAPI.getUUID(mainName);
+			Set<UUID> accounts = new HashSet<UUID>();
+			for(String altName : exceptionsYaml.getStringList(mainName)) {
+				UUID alt = NameAPI.getUUID(altName);
+				accounts.add(alt);
+				mains.put(alt, main);
+			}
+			accounts.add(main);
+			exceptions.put(main, accounts);
+		}
 	}
 	
 	@EventHandler
@@ -108,6 +137,11 @@ public class AltManager extends JavaPlugin implements Listener {
 			sender.sendMessage(ChatColor.GOLD + "" + accounts.size() + "/" + Bukkit.getOnlinePlayers().size() + " players are unique");
 			return true;
 		}
+		if(label.equals("reloadexceptions")) {
+			loadExceptions();
+			sender.sendMessage(ChatColor.GREEN + "Exceptions reloaded!");
+			return true;
+		}
 		if(args.length < 1) {
 			sender.sendMessage(ChatColor.RED + "Please specify a player to check alts for");
 		} else {
@@ -140,8 +174,18 @@ public class AltManager extends JavaPlugin implements Listener {
 	private Map<UUID, Set<UUID>> checked = new ConcurrentHashMap<UUID, Set<UUID>>();
 	
 	private Set<UUID> getAlts(UUID player) {
+		if(exceptions.containsKey(player) || mains.containsKey(player)) {
+			UUID main = exceptions.containsKey(player) ? player : mains.get(player);
+			return exceptions.get(main);
+		}
 		checked.put(player, new HashSet<UUID>());
 		Set<UUID> shares = getShares(player, player);
+		for(UUID id : shares) {
+			if(exceptions.containsKey(id) || mains.containsKey(id)) {
+				UUID main = exceptions.containsKey(player) ? player : mains.get(player);
+				shares.removeAll(exceptions.get(main));
+			}
+		}
 		checked.remove(player);
 		return shares;
 	}
