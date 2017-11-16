@@ -20,18 +20,17 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result;
-import org.bukkit.plugin.java.JavaPlugin;
 
+import com.devotedmc.ExilePearl.ExilePearlPlugin;
+import com.devotedmc.ExilePearl.event.PlayerPearledEvent;
 import com.programmerdan.minecraft.banstick.data.BSBan;
 import com.programmerdan.minecraft.banstick.data.BSPlayer;
 import com.programmerdan.minecraft.banstick.data.BSShare;
 
+import vg.civcraft.mc.civmodcore.ACivMod;
 import vg.civcraft.mc.namelayer.NameAPI;
-import vg.civcraft.mc.prisonpearl.PrisonPearlPlugin;
-import vg.civcraft.mc.prisonpearl.events.PrisonPearlEvent;
-import vg.civcraft.mc.prisonpearl.events.PrisonPearlEvent.Type;
 
-public class AltManager extends JavaPlugin implements Listener {
+public class AltManager extends ACivMod implements Listener {
 
 	private int maxImprisoned = 1;
 	private String kickMessage;
@@ -45,6 +44,10 @@ public class AltManager extends JavaPlugin implements Listener {
 		kickMessage = getConfig().getString("kickMessage", "You have too many imprisoned alts, message modmail if you think this is an error.");
 		loadExceptions();
 		getServer().getPluginManager().registerEvents(this, this);
+	}
+	
+	public String getPluginName() {
+		return "AltManager";
 	}
 	
 	private void loadExceptions() {
@@ -85,27 +88,26 @@ public class AltManager extends JavaPlugin implements Listener {
 		int count = getImprisonedCount(alts);
 		getLogger().info("Imprisoned count for " + event.getUniqueId() + ": " + count);
 		if(count >= maxImprisoned) {
-			if(!PrisonPearlPlugin.getPrisonPearlManager().isImprisoned(event.getUniqueId())) {
+			if(!ExilePearlPlugin.getApi().isPlayerExiled(event.getUniqueId())) {
 				event.disallow(Result.KICK_BANNED, kickMessage);
 			}
 		}
 	}
 
 	@EventHandler
-	public void onPrisonPearl(PrisonPearlEvent event) {
-		if(event.getType() == Type.NEW) {
-			Set<UUID> alts = getAlts(event.getPrisonPearl().getImprisonedId());
-			int count = getImprisonedCount(alts);
-			if(count < maxImprisoned) {
-				getLogger().info(event.getPrisonPearl().getImprisonedName() + " not alt banned due to less than " + maxImprisoned + " pearled");
-				return;
-			}
-			alts.remove(event.getPrisonPearl().getImprisonedId());
-			for(UUID id : alts) {
-				Player player = Bukkit.getPlayer(id);
-				if(player != null && player.isOnline()) {
-					player.kickPlayer(kickMessage);
-				}
+	public void onExilePearl(PlayerPearledEvent event) {
+		UUID imprisoned = event.getPearl().getPlayerId();
+		Set<UUID> alts = getAlts(imprisoned);
+		int count = getImprisonedCount(alts);
+		if(count < maxImprisoned) {
+			getLogger().info(imprisoned + " not alt banned due to less than " + maxImprisoned + " pearled");
+			return;
+		}
+		alts.remove(imprisoned);
+		for(UUID id : alts) {
+			Player player = Bukkit.getPlayer(id);
+			if(player != null && player.isOnline()) {
+				player.kickPlayer(kickMessage);
 			}
 		}
 	}
@@ -155,14 +157,14 @@ public class AltManager extends JavaPlugin implements Listener {
 			String name = NameAPI.getCurrentName(id);
 			Set<UUID> alts = getAlts(id);
 			if(alts.size() == 0) {
-				boolean pearled = PrisonPearlPlugin.getPrisonPearlManager().isImprisoned(id);
+				boolean pearled = ExilePearlPlugin.getApi().isPlayerExiled(id);
 				sender.sendMessage((pearled ? ChatColor.DARK_AQUA : (Bukkit.getOfflinePlayer(id).isOnline() ? ChatColor.GREEN : ChatColor.WHITE)) + name + ChatColor.RESET + " has no alts");
 				return true;
 			}
 			StringBuilder msgBuilder = new StringBuilder(ChatColor.GOLD + "Alts for " + name + ": ");
 			for(UUID user : alts) {
 				Player p = Bukkit.getPlayer(user);
-				boolean pearled = PrisonPearlPlugin.getPrisonPearlManager().isImprisoned(user);
+				boolean pearled = ExilePearlPlugin.getApi().isPlayerExiled(user);
 				msgBuilder.append(pearled ? ChatColor.DARK_AQUA : ((p != null && p.isOnline()) ? ChatColor.GREEN : ChatColor.WHITE)).append(NameAPI.getCurrentName(user)).append(", ");
 			}
 			String msg = msgBuilder.toString();
@@ -214,7 +216,7 @@ public class AltManager extends JavaPlugin implements Listener {
 	private Set<UUID> getImprisonedAlts(Set<UUID> alts) {
 		Set<UUID> imprisoned = new HashSet<UUID>();
 		for(UUID alt : alts) {
-			if(PrisonPearlPlugin.getPrisonPearlManager().isImprisoned(alt)) {
+			if(ExilePearlPlugin.getApi().isPlayerExiled(alt)) {
 				imprisoned.add(alt);
 			}
 		}
