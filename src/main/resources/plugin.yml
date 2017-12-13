@@ -2,7 +2,7 @@ name: AltManager
 main: com.civclassic.altmanager.AltManager
 version: ${project.version}
 author: biggestnerd
-depend: [CivModCore, ExilePearl]
+depend: [CivModCore, ExilePearl, BanStick]
 commands:
   alts:
     description: Interact with the alt list
