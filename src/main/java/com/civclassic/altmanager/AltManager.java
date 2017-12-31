@@ -21,8 +21,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent.Result;
 
-import com.devotedmc.ExilePearl.ExilePearlPlugin;
-import com.devotedmc.ExilePearl.event.PlayerPearledEvent;
 import com.programmerdan.minecraft.banstick.data.BSBan;
 import com.programmerdan.minecraft.banstick.data.BSPlayer;
 import com.programmerdan.minecraft.banstick.data.BSShare;
@@ -36,14 +34,24 @@ public class AltManager extends ACivMod implements Listener {
 	private String kickMessage;
 	private Map<UUID, Set<UUID>> exceptions = new HashMap<UUID, Set<UUID>>();
 	private Map<UUID, UUID> mains = new HashMap<UUID, UUID>();;
+	private ImprisonmentHandler prisonHandler;
 	
 	public void onEnable() {
+		if(Bukkit.getPluginManager().isPluginEnabled("ExilePearl")) {
+			prisonHandler = new ExilePearlHandler(this);
+		} else if(Bukkit.getPluginManager().isPluginEnabled("PrisonPearl")) {
+			prisonHandler = new PrisonPearlHandler(this);
+		} else {
+			Bukkit.getPluginManager().disablePlugin(this);
+			return;
+		}
 		saveDefaultConfig();
 		reloadConfig();
 		maxImprisoned = getConfig().getInt("maxImprisoned", maxImprisoned);
 		kickMessage = getConfig().getString("kickMessage", "You have too many imprisoned alts, message modmail if you think this is an error.");
 		loadExceptions();
 		getServer().getPluginManager().registerEvents(this, this);
+		getServer().getPluginManager().registerEvents(prisonHandler, this);
 	}
 	
 	public String getPluginName() {
@@ -85,29 +93,11 @@ public class AltManager extends ACivMod implements Listener {
 				}
 			}
 		}
-		int count = getImprisonedCount(alts);
+		int count = prisonHandler.getImprisonedCount(alts);
 		getLogger().info("Imprisoned count for " + event.getUniqueId() + ": " + count);
 		if(count >= maxImprisoned) {
-			if(!ExilePearlPlugin.getApi().isPlayerExiled(event.getUniqueId())) {
+			if(!prisonHandler.isImprisoned(event.getUniqueId())) {
 				event.disallow(Result.KICK_BANNED, kickMessage);
-			}
-		}
-	}
-
-	@EventHandler
-	public void onExilePearl(PlayerPearledEvent event) {
-		UUID imprisoned = event.getPearl().getPlayerId();
-		Set<UUID> alts = getAlts(imprisoned);
-		int count = getImprisonedCount(alts);
-		if(count < maxImprisoned) {
-			getLogger().info(imprisoned + " not alt banned due to less than " + maxImprisoned + " pearled");
-			return;
-		}
-		alts.remove(imprisoned);
-		for(UUID id : alts) {
-			Player player = Bukkit.getPlayer(id);
-			if(player != null && player.isOnline()) {
-				player.kickPlayer(kickMessage);
 			}
 		}
 	}
@@ -157,14 +147,14 @@ public class AltManager extends ACivMod implements Listener {
 			String name = NameAPI.getCurrentName(id);
 			Set<UUID> alts = getAlts(id);
 			if(alts.size() == 0) {
-				boolean pearled = ExilePearlPlugin.getApi().isPlayerExiled(id);
+				boolean pearled = prisonHandler.isImprisoned(id);
 				sender.sendMessage((pearled ? ChatColor.DARK_AQUA : (Bukkit.getOfflinePlayer(id).isOnline() ? ChatColor.GREEN : ChatColor.WHITE)) + name + ChatColor.RESET + " has no alts");
 				return true;
 			}
 			StringBuilder msgBuilder = new StringBuilder(ChatColor.GOLD + "Alts for " + name + ": ");
 			for(UUID user : alts) {
 				Player p = Bukkit.getPlayer(user);
-				boolean pearled = ExilePearlPlugin.getApi().isPlayerExiled(user);
+				boolean pearled = prisonHandler.isImprisoned(user);
 				msgBuilder.append(pearled ? ChatColor.DARK_AQUA : ((p != null && p.isOnline()) ? ChatColor.GREEN : ChatColor.WHITE)).append(NameAPI.getCurrentName(user)).append(", ");
 			}
 			String msg = msgBuilder.toString();
@@ -175,7 +165,7 @@ public class AltManager extends ACivMod implements Listener {
 	
 	private Map<UUID, Set<UUID>> checked = new ConcurrentHashMap<UUID, Set<UUID>>();
 	
-	private Set<UUID> getAlts(UUID player) {
+	Set<UUID> getAlts(UUID player) {
 		if(exceptions.containsKey(player) || mains.containsKey(player)) {
 			UUID main = exceptions.containsKey(player) ? player : mains.get(player);
 			return exceptions.get(main);
@@ -190,6 +180,14 @@ public class AltManager extends ACivMod implements Listener {
 		}
 		checked.remove(player);
 		return shares;
+	}
+	
+	void kickPlayer(Player player) {
+		player.kickPlayer(kickMessage);
+	}
+	
+	int getMaxImprisoned() {
+		return maxImprisoned;
 	}
 	
 	private Set<UUID> getShares(UUID main, UUID player) {
@@ -211,19 +209,5 @@ public class AltManager extends ACivMod implements Listener {
 			}
 		}
 		return shares;
-	}
-	
-	private Set<UUID> getImprisonedAlts(Set<UUID> alts) {
-		Set<UUID> imprisoned = new HashSet<UUID>();
-		for(UUID alt : alts) {
-			if(ExilePearlPlugin.getApi().isPlayerExiled(alt)) {
-				imprisoned.add(alt);
-			}
-		}
-		return imprisoned;
-	}
-	
-	private int getImprisonedCount(Set<UUID> alts) {
-		return getImprisonedAlts(alts).size();
 	}
 }
