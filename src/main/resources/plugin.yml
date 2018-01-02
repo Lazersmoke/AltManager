@@ -2,12 +2,8 @@ name: AltManager
 main: com.civclassic.altmanager.AltManager
 version: ${project.version}
 author: biggestnerd
-<<<<<<< HEAD
 depend: [CivModCore, NameLayer, BanStick]
 softdepend: [ExilePearl, PrisonPearl]
-=======
-depend: [CivModCore, ExilePearl, BanStick]
->>>>>>> branch 'master' of https://github.com/civclassic/altmanager
 commands:
   alts:
     description: Interact with the alt list
