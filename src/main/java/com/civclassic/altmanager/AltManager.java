@@ -14,6 +14,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -68,16 +69,19 @@ public class AltManager extends ACivMod implements Listener {
 			} catch (IOException e) {}
 		}
 		YamlConfiguration exceptionsYaml = YamlConfiguration.loadConfiguration(exceptionsFile);
-		for(String mainName : exceptionsYaml.getKeys(false)) {
-			UUID main = NameAPI.getUUID(mainName);
-			Set<UUID> accounts = new HashSet<UUID>();
-			for(String altName : exceptionsYaml.getStringList(mainName)) {
-				UUID alt = NameAPI.getUUID(altName);
-				accounts.add(alt);
-				mains.put(alt, main);
+		ConfigurationSection exceptionSection = exceptionsYaml.getConfigurationSection("exceptions");
+		ConfigurationSection mainsSection = exceptionsYaml.getConfigurationSection("mains");
+		for(String main : mainsSection.getKeys(false)) {
+			for(String alt : mainsSection.getStringList(main)) {
+				mains.put(NameAPI.getUUID(alt), NameAPI.getUUID(main));
 			}
-			accounts.add(main);
-			exceptions.put(main, accounts);
+		}
+		for(String main : exceptionSection.getKeys(false)) {
+			Set<UUID> excepts = new HashSet<UUID>();
+			for(String name : exceptionSection.getStringList(main)) {
+				excepts.add(NameAPI.getUUID(name));
+			}
+			exceptions.put(NameAPI.getUUID(main), excepts);
 		}
 	}
 	
