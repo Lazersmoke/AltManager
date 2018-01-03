@@ -31,6 +31,8 @@ import vg.civcraft.mc.namelayer.NameAPI;
 
 public class AltManager extends ACivMod implements Listener {
 
+	private static AltManager instance;
+	
 	private int maxImprisoned = 1;
 	private String kickMessage;
 	private Map<UUID, Set<UUID>> exceptions = new HashMap<UUID, Set<UUID>>();
@@ -38,6 +40,7 @@ public class AltManager extends ACivMod implements Listener {
 	private ImprisonmentHandler prisonHandler;
 	
 	public void onEnable() {
+		instance = this;
 		if(Bukkit.getPluginManager().isPluginEnabled("ExilePearl")) {
 			prisonHandler = new ExilePearlHandler(this);
 		} else if(Bukkit.getPluginManager().isPluginEnabled("PrisonPearl")) {
@@ -169,7 +172,7 @@ public class AltManager extends ACivMod implements Listener {
 	
 	private Map<UUID, Set<UUID>> checked = new ConcurrentHashMap<UUID, Set<UUID>>();
 	
-	Set<UUID> getAlts(UUID player) {
+	public Set<UUID> getAlts(UUID player) {
 		if(exceptions.containsKey(player) || mains.containsKey(player)) {
 			UUID main = exceptions.containsKey(player) ? player : mains.get(player);
 			return exceptions.get(main);
@@ -211,5 +214,9 @@ public class AltManager extends ACivMod implements Listener {
 			}
 		}
 		return shares;
+	}
+	
+	public static AltManager instance() {
+		return instance;
 	}
 }
