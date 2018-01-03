@@ -180,8 +180,8 @@ public class AltManager extends ACivMod implements Listener {
 		checked.put(player, new HashSet<UUID>());
 		Set<UUID> shares = getShares(player, player);
 		UUID main = exceptions.containsKey(player) ? player : mains.get(player);
-		if(main != null) {
-			shares.remove(exceptions.get(main));
+		if(main != null && exceptions.containsKey(main)) {
+			shares.removeAll(exceptions.get(main));
 		}
 		checked.remove(player);
 		return shares;
