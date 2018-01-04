@@ -183,10 +183,6 @@ public class AltManager extends ACivMod implements Listener {
 	private Map<UUID, Set<UUID>> checked = new ConcurrentHashMap<UUID, Set<UUID>>();
 	
 	public Set<UUID> getAlts(UUID player) {
-		if(exceptions.containsKey(player) || mains.containsKey(player)) {
-			UUID main = exceptions.containsKey(player) ? player : mains.get(player);
-			return exceptions.get(main);
-		}
 		checked.put(player, new HashSet<UUID>());
 		Set<UUID> shares = getShares(player, player);
 		UUID main = mains.containsKey(player) ? mains.get(player) : player;
