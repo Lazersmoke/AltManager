@@ -75,7 +75,17 @@ public class AltManager extends ACivMod implements Listener {
 		ConfigurationSection exceptionSection = exceptionsYaml.getConfigurationSection("exceptions");
 		ConfigurationSection mainsSection = exceptionsYaml.getConfigurationSection("mains");
 		for(String main : mainsSection.getKeys(false)) {
+			UUID mainId = NameAPI.getUUID(main);
+			if(mainId == null) {
+				getLogger().warning(main + " not found in namelayer db, skipping");
+				continue;
+			}
 			for(String alt : mainsSection.getStringList(main)) {
+				UUID altId = NameAPI.getUUID(alt);
+				if(altId == null) {
+					getLogger().warning(alt + " not found in namelayer db, skipping as alt of " + main);
+					continue;
+				}
 				mains.put(NameAPI.getUUID(alt), NameAPI.getUUID(main));
 			}
 		}
@@ -179,7 +189,7 @@ public class AltManager extends ACivMod implements Listener {
 		}
 		checked.put(player, new HashSet<UUID>());
 		Set<UUID> shares = getShares(player, player);
-		UUID main = exceptions.containsKey(player) ? player : mains.get(player);
+		UUID main = mains.containsKey(player) ? mains.get(player) : player;
 		if(main != null && exceptions.containsKey(main)) {
 			shares.removeAll(exceptions.get(main));
 		}
