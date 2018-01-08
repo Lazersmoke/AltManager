@@ -43,8 +43,6 @@ public class AltManager extends ACivMod implements Listener {
 		instance = this;
 		if(Bukkit.getPluginManager().isPluginEnabled("ExilePearl")) {
 			prisonHandler = new ExilePearlHandler(this);
-		} else if(Bukkit.getPluginManager().isPluginEnabled("PrisonPearl")) {
-			prisonHandler = new PrisonPearlHandler(this);
 		} else {
 			Bukkit.getPluginManager().disablePlugin(this);
 			return;
@@ -164,15 +162,20 @@ public class AltManager extends ACivMod implements Listener {
 			String name = NameAPI.getCurrentName(id);
 			Set<UUID> alts = getAlts(id);
 			if(alts.size() == 0) {
+				Player p = Bukkit.getPlayer(id);
 				boolean pearled = prisonHandler.isImprisoned(id);
-				sender.sendMessage((pearled ? ChatColor.DARK_AQUA : (Bukkit.getOfflinePlayer(id).isOnline() ? ChatColor.GREEN : ChatColor.WHITE)) + name + ChatColor.RESET + " has no alts");
+				boolean banned = BSPlayer.byUUID(id).getBan() != null;
+				ChatColor color = banned ? ChatColor.RED : (pearled ? ChatColor.DARK_AQUA : (p != null && p.isOnline() ? ChatColor.GREEN : ChatColor.WHITE));
+				sender.sendMessage(color + name + ChatColor.RESET + " has no alts");
 				return true;
 			}
 			StringBuilder msgBuilder = new StringBuilder(ChatColor.GOLD + "Alts for " + name + ": ");
 			for(UUID user : alts) {
 				Player p = Bukkit.getPlayer(user);
 				boolean pearled = prisonHandler.isImprisoned(user);
-				msgBuilder.append(pearled ? ChatColor.DARK_AQUA : ((p != null && p.isOnline()) ? ChatColor.GREEN : ChatColor.WHITE)).append(NameAPI.getCurrentName(user)).append(", ");
+				boolean banned = BSPlayer.byUUID(user).getBan() != null;
+				ChatColor color = banned ? ChatColor.RED : (pearled ? ChatColor.DARK_AQUA : (p != null && p.isOnline() ? ChatColor.GREEN : ChatColor.WHITE));
+				msgBuilder.append(color).append(NameAPI.getCurrentName(user)).append(", ");
 			}
 			String msg = msgBuilder.toString();
 			sender.sendMessage(msg.substring(0, msg.length() - 2));
