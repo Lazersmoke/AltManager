@@ -31,7 +31,7 @@
         <dependency>
             <groupId>com.devotedmc</groupId>
             <artifactId>ExilePearl</artifactId>
-            <version>1.2.1-SNAPSHOT</version>
+            <version>1.2.4-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.programmerdan.minecraft</groupId>
