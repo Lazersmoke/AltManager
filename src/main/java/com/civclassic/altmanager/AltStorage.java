@@ -24,7 +24,7 @@ public class AltStorage {
 				+ "player varchar(40) unique not null);");
 	}
 	
-	public int getAssociationGroup(UUID player) {
+	public Integer getAssociationGroup(UUID player) {
 		try (Connection conn = db.getConnection();
 				PreparedStatement ps = conn.prepareStatement(GET_GROUP)) {
 			ps.setString(1, player.toString());
@@ -35,7 +35,7 @@ public class AltStorage {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		return -1;
+		return null;
 	}
 	
 	public Set<UUID> getAlts(UUID player) {
