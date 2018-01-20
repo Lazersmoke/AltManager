@@ -207,7 +207,13 @@ public class AltManager extends ACivMod implements Listener {
 	
 	private Map<UUID, Set<UUID>> checked = new ConcurrentHashMap<UUID, Set<UUID>>();
 
+	// Get alts from our database
 	public Set<UUID> getAlts(UUID player) {
+		return altStorage.getAltsByAssociationGroup(getAssociationGroup(player));
+	}
+
+	// Get alts based on banstick shares
+	private Set<UUID> getAltsFromBanStick(UUID player) {
 		checked.put(player, new HashSet<UUID>());
 		Set<UUID> shares = getShares(player, player);
 		UUID main = mains.containsKey(player) ? mains.get(player) : player;
@@ -247,30 +253,26 @@ public class AltManager extends ACivMod implements Listener {
 		return shares;
 	}
 	
+	// Get association group, adding the player to the database if needed
 	public int getAssociationGroup(UUID player) {
-		Integer grp = altStorage.getAssociationGroup(player);
-		// They are already in the database; return their group ID
-		if(grp != null) {
-			return grp;
-		}
 		// Maybe one of their alts is in the database?
-		Set<UUID> alts = getAlts(player);
+		Set<UUID> alts = getAltsFromBanStick(player);
+		alts.add(player);
+		Integer grp = null;
 		for(UUID u : alts) {
 			grp = altStorage.getAssociationGroup(u);
 			// This alt is in the database; stop looking for more
 			if(grp != null) {
-				// Add this player and all their alts to the database for next time
-				altStorage.addAssociation(grp,player);
-				final int grpId = grp;
-				alts.forEach(a -> altStorage.addAssociation(grpId,a));
+				// Add this player to the database for next time
+				altStorage.addAssociations(grp,alts);
 				return grp;
 			}
 		}
-		// This player and thier alts are new to the database
+		// This player and their alts are all new to the database
 		altStorage.addUnassociatedPlayer(player);
-		final int grpId = altStorage.getAssociationGroup(player);
-		alts.forEach(a -> altStorage.addAssociation(grpId,a));
-		return grpId;
+		grp = altStorage.getAssociationGroup(player);
+		altStorage.addAssociations(grp,alts);
+		return grp;
 	}
 
 	public static AltManager instance() {
