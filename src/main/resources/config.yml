@@ -1,3 +1,13 @@
+mysql:
+  user: 'root'
+  password: 'asdfasdf'
+  host: localhost
+  database: altmanager
+  port: 3306
+  poolsize: 10
+  connectionTimeout: 10000
+  idleTimout: 600000
+  maxLifetime: 7200000
 allowSelfPearl: false
 maxImprisoned: 1
 kickMessage: You have too many imprisoned alts, message modmail if you think this is an error.

@@ -38,6 +38,7 @@ public class AltManager extends ACivMod implements Listener {
 	private Map<UUID, Set<UUID>> exceptions = new HashMap<UUID, Set<UUID>>();
 	private Map<UUID, UUID> mains = new HashMap<UUID, UUID>();;
 	private ImprisonmentHandler prisonHandler;
+	private AltStorage altStorage;
 	
 	public void onEnable() {
 		instance = this;
@@ -49,6 +50,7 @@ public class AltManager extends ACivMod implements Listener {
 		}
 		saveDefaultConfig();
 		reloadConfig();
+		altStorage = setupDatabase();
 		maxImprisoned = getConfig().getInt("maxImprisoned", maxImprisoned);
 		kickMessage = getConfig().getString("kickMessage", "You have too many imprisoned alts, message modmail if you think this is an error.");
 		loadExceptions();
@@ -59,7 +61,27 @@ public class AltManager extends ACivMod implements Listener {
 	public String getPluginName() {
 		return "AltManager";
 	}
-	
+
+	private AltStorage setupDatabase() {
+		ConfigurationSection config = getConfig().getConfigurationSection("mysql");
+		String host = config.getString("host");
+		int port = config.getInt("port");
+		String user = config.getString("user");
+		String pass = config.getString("password");
+		String dbname = config.getString("database");
+		int poolsize = config.getInt("poolsize");
+		long connectionTimeout = config.getLong("connectionTimeout");
+		long idleTimeout = config.getLong("idleTimeout");
+		long maxLifetime = config.getLong("maxLifetime");
+		try {
+			return new AltStorage(this, user, pass, host, port, dbname, poolsize, connectionTimeout, idleTimeout, maxLifetime);
+		} catch(Exception e) {
+			warning("Could not connect to database, stopping AltManager", e);
+			getServer().getPluginManager().disablePlugin(this);
+			return null;
+		}
+	}
+
 	private void loadExceptions() {
 		exceptions.clear();
 		mains.clear();
@@ -184,7 +206,7 @@ public class AltManager extends ACivMod implements Listener {
 	}
 	
 	private Map<UUID, Set<UUID>> checked = new ConcurrentHashMap<UUID, Set<UUID>>();
-	
+
 	public Set<UUID> getAlts(UUID player) {
 		checked.put(player, new HashSet<UUID>());
 		Set<UUID> shares = getShares(player, player);
@@ -225,6 +247,32 @@ public class AltManager extends ACivMod implements Listener {
 		return shares;
 	}
 	
+	public int getAssociationGroup(UUID player) {
+		Integer grp = altStorage.getAssociationGroup(player);
+		// They are already in the database; return their group ID
+		if(grp != null) {
+			return grp;
+		}
+		// Maybe one of their alts is in the database?
+		Set<UUID> alts = getAlts(player);
+		for(UUID u : alts) {
+			grp = altStorage.getAssociationGroup(u);
+			// This alt is in the database; stop looking for more
+			if(grp != null) {
+				// Add this player and all their alts to the database for next time
+				altStorage.addAssociation(grp,player);
+				final int grpId = grp;
+				alts.forEach(a -> altStorage.addAssociation(grpId,a));
+				return grp;
+			}
+		}
+		// This player and thier alts are new to the database
+		altStorage.addUnassociatedPlayer(player);
+		final int grpId = altStorage.getAssociationGroup(player);
+		alts.forEach(a -> altStorage.addAssociation(grpId,a));
+		return grpId;
+	}
+
 	public static AltManager instance() {
 		return instance;
 	}
