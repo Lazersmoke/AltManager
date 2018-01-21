@@ -21,13 +21,23 @@ public class AltStorage {
 
 	public AltStorage(AltManager plugin, String user, String pass, String host, int port, String database,
 			int poolSize, long connectionTimeout, long idleTimeout, long maxLifetime) {
-		db = new ManagedDatasource(plugin, user, pass, host, port, database, poolSize, connectionTimeout, idleTimeout, maxLifetime);
-		registerMigrations();
-		db.updateDatabase();
+		ManagedDatasource theDB = null;
+		try {
+			theDB = new ManagedDatasource(plugin, user, pass, host, port, database, poolSize, connectionTimeout, idleTimeout, maxLifetime);
+			theDB.getConnection().close(); // Test connection
+			registerMigrations(theDB);
+			if(!theDB.updateDatabase()) {
+				plugin.warning("Failed to updated database, stopping AltManager");
+				plugin.getServer().getPluginManager().disablePlugin(plugin);
+			}
+		} catch(Exception e) {
+			plugin.warning("Could not connect to database, stopping AltManager", e);
+			plugin.getServer().getPluginManager().disablePlugin(plugin);
+		} finally {db = theDB;}
 	}
 
-	public void registerMigrations() {
-		db.registerMigration(1, true, 
+	private void registerMigrations(ManagedDatasource theDB) {
+		theDB.registerMigration(1, true, 
 				"create table if not exists alts ("
 				+ "groupid bigint not null,"
 				+ "player varchar(40) primary key);");

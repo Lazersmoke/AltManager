@@ -53,6 +53,9 @@ public class AltManager extends ACivMod implements Listener {
 		altStorage = setupDatabase();
 		maxImprisoned = getConfig().getInt("maxImprisoned", maxImprisoned);
 		kickMessage = getConfig().getString("kickMessage", "You have too many imprisoned alts, message modmail if you think this is an error.");
+		if(!this.isEnabled()) { // If something failed to start properly
+			return;
+		}
 		loadExceptions();
 		getServer().getPluginManager().registerEvents(this, this);
 		getServer().getPluginManager().registerEvents(prisonHandler, this);
@@ -73,13 +76,7 @@ public class AltManager extends ACivMod implements Listener {
 		long connectionTimeout = config.getLong("connectionTimeout");
 		long idleTimeout = config.getLong("idleTimeout");
 		long maxLifetime = config.getLong("maxLifetime");
-		try {
-			return new AltStorage(this, user, pass, host, port, dbname, poolsize, connectionTimeout, idleTimeout, maxLifetime);
-		} catch(Exception e) {
-			warning("Could not connect to database, stopping AltManager", e);
-			getServer().getPluginManager().disablePlugin(this);
-			return null;
-		}
+		return new AltStorage(this, user, pass, host, port, dbname, poolsize, connectionTimeout, idleTimeout, maxLifetime);
 	}
 
 	private void loadExceptions() {
